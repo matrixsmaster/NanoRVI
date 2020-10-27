@@ -177,6 +177,41 @@ static const char* riscv_useregs[] = {
 };
 #endif
 
+typedef enum {
+    RVR_ZERO,
+    RVR_RA,
+    RVR_SP,
+    RVR_GP,
+    RVR_TP,
+    RVR_T0,
+    RVR_T1,
+    RVR_T2,
+    RVR_S0,
+    RVR_S1,
+    RVR_A0,
+    RVR_A1,
+    RVR_A2,
+    RVR_A3,
+    RVR_A4,
+    RVR_A5,
+    RVR_A6,
+    RVR_A7,
+    RVR_S2,
+    RVR_S3,
+    RVR_S4,
+    RVR_S5,
+    RVR_S6,
+    RVR_S7,
+    RVR_S8,
+    RVR_S9,
+    RVR_S10,
+    RVR_S11,
+    RVR_T3,
+    RVR_T4,
+    RVR_T5,
+    RVR_T6
+} riscv_reg;
+
 #if 1
 static const char* riscv_regname[32] = {
     "zero",
@@ -213,5 +248,13 @@ static const char* riscv_regname[32] = {
     "t6"
 };
 #endif
+
+typedef enum {
+    RVSYS_CLOSE = 57,
+    RVSYS_WRITE = 64,
+    RVSYS_FSTAT = 80,
+    RVSYS_EXIT = 93,
+    RVSYS_BRK = 214,
+} riscv_sys;
 
 #endif /* RISCV_H_ */

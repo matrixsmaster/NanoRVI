@@ -118,13 +118,13 @@ riscv_op decode(uint32_t in, uint32_t* imm)
 
 int32_t extend(uint32_t x, int bit)
 {
-    uint32_t dbg = x;
+//    uint32_t dbg = x;
     uint32_t c = (x & (1U << bit));
     while (++bit < 32) {
         c <<= 1;
         x |= c;
     }
-    printf("[DEBUG] extend: 0x%08x -> 0x%08X (%d)\n",dbg,x,(int)x);
+//    printf("[DEBUG] extend: 0x%08x -> 0x%08X (%d)\n",dbg,x,(int)x);
     return (int32_t)x;
 }
 
@@ -177,11 +177,11 @@ int main(int argc, char* argv[])
     int ip = readhex(argv[1]);
     assert(ip);
 
-    regs[2] = RAMSIZE - 4;
+    regs[RVR_SP] = RAMSIZE - 4;
 
     while (ip >= 0 && ip < RAMSIZE) {
         assert((ip & 3) == 0);
-        regs[0] = 0;
+        regs[RVR_ZERO] = 0;
 
 //        assert(ip != 0x10144);
 
@@ -197,9 +197,12 @@ int main(int argc, char* argv[])
 //        if (riscv_useregs[op][1] == '1') assert(rs1 < NUMREGS);
 //        if (riscv_useregs[op][2] == '1') assert(rs2 < NUMREGS);
 
-        printf("0x%08X: %s %s %s %s (0x%06X) SP=%d (0x%08X)\n",ip,riscv_names[op],riscv_regname[rd],riscv_regname[rs1],riscv_regname[rs2],imm,regs[2],regs[2]);
-        for (int k = 1; k < 32; k++) printf("%d ",regs[k]);
-        puts("");
+        if (argc > 2 && argv[2][0] == 'v')
+            printf("0x%08X: %s %s %s %s (0x%06X) SP=%d (0x%08X)\n",ip,riscv_names[op],riscv_regname[rd],riscv_regname[rs1],riscv_regname[rs2],imm,regs[2],regs[2]);
+
+//        for (int k = 1; k < 32; k++) printf("%d ",regs[k]);
+//        puts("");
+
 //        getchar();
 
         uint32_t jmp = 0;
@@ -330,6 +333,31 @@ int main(int argc, char* argv[])
             break;
         case RV_ECALL:
             printf("Syscall request encountered at ip=0x%08X\n",ip);
+            switch (regs[RVR_A7]) {
+            case RVSYS_CLOSE:
+                //TODO
+                regs[RVR_A0] = 0; // success
+                break;
+            case RVSYS_WRITE:
+                for (int j = 0; j < regs[RVR_A2]; j++) putchar(read8(regs[RVR_A1]+j,0));
+//                for (int k = RVR_A0; k <= RVR_A5; k++) printf("%d ",regs[k]);
+//                puts("");
+                regs[RVR_A0] = regs[RVR_A2]; // return length field
+                break;
+            case RVSYS_FSTAT:
+                //TODO
+                regs[RVR_A0] = 0; // success
+                break;
+            case RVSYS_EXIT:
+                ip = RAMSIZE;
+                break;
+            case RVSYS_BRK:
+                //TODO
+                regs[RVR_A0] = 0; // success
+                break;
+            default:
+                printf("Unimplemented syscall %d\n",regs[RVR_A7]);
+            }
             break;
         case RV_EBREAK:
             printf("Breakpoint encountered at ip=0x%08X\n",ip);
@@ -338,4 +366,6 @@ int main(int argc, char* argv[])
 
         if (!jmp) ip += 4;
     }
+
+    puts("Quit");
 }
