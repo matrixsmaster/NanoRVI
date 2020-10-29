@@ -132,7 +132,7 @@ static const char* riscv_names[] = {
     "EBREAK"
 };
 
-#if 0
+#if 1
 static const char* riscv_useregs[] = {
     "100",
     "100",

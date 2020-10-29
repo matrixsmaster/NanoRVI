@@ -1,3 +1,7 @@
+/*
+ * export PATH="/home/lisa/local/riscv-gcc/bin:$PATH"
+ * riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -Wl,-gc-sections -g0 -o test3.elf test3.c
+ * */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

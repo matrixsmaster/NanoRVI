@@ -236,8 +236,16 @@ int main(int argc, char* argv[])
         riscv_op op = decode(inst,&imm);
         assert(op <= RV_EBREAK);
 
-        if (debug & DBG_TRACE)
-            printf("0x%08X: %s %s %s %s (0x%06X) SP=%d (0x%08X)\n",ip,riscv_names[op],riscv_regname[rd],riscv_regname[rs1],riscv_regname[rs2],imm,regs[2],regs[2]);
+        if (debug & DBG_TRACE) {
+            printf("0x%08X: %s ",ip,riscv_names[op]);
+            if (riscv_useregs[op][0] == '1')
+                printf("%s ",riscv_regname[rd]);
+            if (riscv_useregs[op][1] == '1')
+                printf("%s ",riscv_regname[rs1]);
+            if (riscv_useregs[op][2] == '1')
+                printf("%s ",riscv_regname[rs2]);
+            printf("(0x%06X) SP=%d (0x%08X)\n",imm,regs[RVR_SP],regs[RVR_SP]);
+        }
 
         if (debug & DBG_REGS) {
             for (int k = 1; k < 32; k++) printf("%d ",regs[k]);

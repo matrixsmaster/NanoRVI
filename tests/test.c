@@ -1,7 +1,6 @@
 /*
  * export PATH="/home/lisa/local/riscv-gcc/bin:$PATH"
- * riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -o test.elf test.c
- * riscv32-unknown-elf-objcopy -S -O ihex test.elf test.hex
+ * riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -Wl,-gc-sections -g0 -o test.elf test.c
   * */
 int main()
 {
