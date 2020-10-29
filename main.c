@@ -8,9 +8,46 @@
 
 #define NUMREGS 32
 #define RAMSIZE (10*1024*1024)
+#define STACKSIZE (2*1024*1024)
+#define HEAPSIZE (RAMSIZE-STACKSIZE)
+
+enum debug_opts {
+    DBG_TRACE = 0x01,
+    DBG_SYSCALL = 0x02,
+    DBG_MEM = 0x04,
+    DBG_REGS = 0x08,
+    DBG_INTERACTIVE = 0x10,
+};
+
+static const struct {
+    char opt;
+    uint32_t flag;
+} debug_switches[] = {
+        { 't', DBG_TRACE },
+        { 's', DBG_SYSCALL },
+        { 'm', DBG_MEM },
+        { 'r', DBG_REGS },
+        { 'i', DBG_INTERACTIVE },
+        { 0, 0 }
+};
 
 uint32_t regs[NUMREGS] = {0};
 uint8_t ram[RAMSIZE] = {0};
+uint32_t code_end = 0;
+uint32_t debug = 0;
+
+void readopts(const char* arg)
+{
+    while (*arg) {
+        for (int i = 0; debug_switches[i].opt; i++) {
+            if (*arg == debug_switches[i].opt) {
+                debug |= debug_switches[i].flag;
+                break;
+            }
+        }
+        arg++;
+    }
+}
 
 int inbyte(char** in)
 {
@@ -44,6 +81,7 @@ int readhex(const char* fn)
                 assert(off+adr+i < RAMSIZE);
                 ram[off+adr+i] = inbyte(&ptr);
             }
+            code_end = off+adr+len;
             break;
 
         case 0x01:
@@ -79,14 +117,7 @@ int readhex(const char* fn)
 
 riscv_op decode(uint32_t in, uint32_t* imm)
 {
-#if 0
-    uint32_t x = in;
-    printf("in=0x%08X\n",in);
-    for (int i = 0; i < 32; i++,x<<=1) putchar((x&0x80000000)? '1':'0');
-    puts("");
-#endif
     for (int i = 0; i <= RV_EBREAK; i++) {
-//        puts(riscv_encode[i]);
         uint32_t tmp = 0;
         int fnd = 1;
         for (int j = 0; (j < 32) && fnd; j++) {
@@ -96,14 +127,8 @@ riscv_op decode(uint32_t in, uint32_t* imm)
                 d <<= riscv_encode[i][j] - '<';
                 tmp |= d;
             } else {
-//                printf("eq=0x%08X\n",(in & (1U << (31-j))));
                 char d = (in & (1U << (31-j)))? '1':'0';
                 if (riscv_encode[i][j] != d) {
-#if 0
-                    for (int k = 0; k < j; k++) putchar(' ');
-                    puts("^");
-                    printf("i=%d, pos=%d, expected %c, got %c\n",i,j,riscv_encode[i][j],d);
-#endif
                     fnd = 0;
                 }
             }
@@ -118,13 +143,11 @@ riscv_op decode(uint32_t in, uint32_t* imm)
 
 int32_t extend(uint32_t x, int bit)
 {
-//    uint32_t dbg = x;
     uint32_t c = (x & (1U << bit));
     while (++bit < 32) {
         c <<= 1;
         x |= c;
     }
-//    printf("[DEBUG] extend: 0x%08x -> 0x%08X (%d)\n",dbg,x,(int)x);
     return (int32_t)x;
 }
 
@@ -132,21 +155,27 @@ uint32_t read8(uint32_t addr, int sign)
 {
     assert(addr < RAMSIZE);
     uint8_t* ptr = ram + addr;
-    return sign? (uint32_t)extend(*ptr,7) : (uint32_t)(*ptr);
+    uint32_t val = sign? (uint32_t)extend(*ptr,7) : (uint32_t)(*ptr);
+    if (debug & DBG_MEM) printf("Read %s byte from 0x%08X: 0x%02X\n",(sign? "signed":"unsigned"),addr,val);
+    return val;
 }
 
 uint32_t read16(uint32_t addr, int sign)
 {
     assert(addr < RAMSIZE);
     uint16_t* ptr = (uint16_t*)(ram + addr);
-    return sign? (uint32_t)extend(*ptr,15) : (uint32_t)(*ptr);
+    uint32_t val = sign? (uint32_t)extend(*ptr,15) : (uint32_t)(*ptr);
+    if (debug & DBG_MEM) printf("Read %s half-word from 0x%08X: 0x%02X\n",(sign? "signed":"unsigned"),addr,val);
+    return val;
 }
 
 uint32_t read32(uint32_t addr)
 {
     assert(addr < RAMSIZE);
     uint32_t* ptr = (uint32_t*)(ram + addr);
-    return *ptr;
+    uint32_t val = *ptr;
+    if (debug & DBG_MEM) printf("Read word from 0x%08X: 0x%02X\n",addr,val);
+    return val;
 }
 
 void write8(uint32_t addr, uint32_t val)
@@ -154,6 +183,7 @@ void write8(uint32_t addr, uint32_t val)
     assert(addr < RAMSIZE);
     uint8_t* ptr = ram + addr;
     *ptr = val & 0xFF;
+    if (debug & DBG_MEM) printf("Write byte to 0x%08X: 0x%02X\n",addr,val);
 }
 
 void write16(uint32_t addr, uint32_t val)
@@ -161,6 +191,7 @@ void write16(uint32_t addr, uint32_t val)
     assert(addr < RAMSIZE);
     uint16_t* ptr = (uint16_t*)(ram + addr);
     *ptr = val & 0xFFFF;
+    if (debug & DBG_MEM) printf("Write half-word to 0x%08X: 0x%02X\n",addr,val);
 }
 
 void write32(uint32_t addr, uint32_t val)
@@ -168,11 +199,50 @@ void write32(uint32_t addr, uint32_t val)
     assert(addr < RAMSIZE);
     uint32_t* ptr = (uint32_t*)(ram + addr);
     *ptr = val;
+    if (debug & DBG_MEM) printf("Write word to 0x%08X: 0x%02X\n",addr,val);
+}
+
+uint8_t ecall()
+{
+    switch (regs[RVR_A7]) {
+    case RVSYS_CLOSE:
+        //TODO
+        regs[RVR_A0] = 0; // success
+        break;
+
+    case RVSYS_WRITE:
+        for (int j = 0; j < regs[RVR_A2]; j++) putchar(read8(regs[RVR_A1]+j,0));
+        regs[RVR_A0] = regs[RVR_A2]; // return length field
+        break;
+
+    case RVSYS_FSTAT:
+        //TODO
+        regs[RVR_A0] = 0; // success
+        break;
+
+    case RVSYS_EXIT:
+        return 1;
+
+    case RVSYS_BRK:
+        if (debug & DBG_SYSCALL)
+            printf("Moving program break to 0x%08X\n",regs[RVR_A0]);
+        if (regs[RVR_A0] && regs[RVR_A0] < HEAPSIZE)
+            code_end = regs[RVR_A0];
+        regs[RVR_A0] = code_end;
+        break;
+
+    default:
+        printf("Unimplemented syscall %d\n",regs[RVR_A7]);
+    }
+
+    return 0;
 }
 
 int main(int argc, char* argv[])
 {
     assert(argc > 1);
+
+    if (argc > 2) readopts(argv[2]);
 
     int ip = readhex(argv[1]);
     assert(ip);
@@ -183,8 +253,6 @@ int main(int argc, char* argv[])
         assert((ip & 3) == 0);
         regs[RVR_ZERO] = 0;
 
-//        assert(ip != 0x10144);
-
         uint32_t inst = read32(ip);
         uint32_t imm = 0;
         uint32_t rd = (inst >> 7) & 0x1F;
@@ -193,17 +261,15 @@ int main(int argc, char* argv[])
         riscv_op op = decode(inst,&imm);
         assert(op <= RV_EBREAK);
 
-//        if (riscv_useregs[op][0] == '1') assert(rd < NUMREGS);
-//        if (riscv_useregs[op][1] == '1') assert(rs1 < NUMREGS);
-//        if (riscv_useregs[op][2] == '1') assert(rs2 < NUMREGS);
-
-        if (argc > 2 && argv[2][0] == 'v')
+        if (debug & DBG_TRACE)
             printf("0x%08X: %s %s %s %s (0x%06X) SP=%d (0x%08X)\n",ip,riscv_names[op],riscv_regname[rd],riscv_regname[rs1],riscv_regname[rs2],imm,regs[2],regs[2]);
 
-//        for (int k = 1; k < 32; k++) printf("%d ",regs[k]);
-//        puts("");
+        if (debug & DBG_REGS) {
+            for (int k = 1; k < 32; k++) printf("%d ",regs[k]);
+            puts("");
+        }
 
-//        getchar();
+        if (debug & DBG_INTERACTIVE) getchar();
 
         uint32_t jmp = 0;
         switch (op) {
@@ -214,7 +280,7 @@ int main(int argc, char* argv[])
             regs[rd] = ip + imm;
             break;
         case RV_JAL:
-            regs[rd] = ip + 4;
+            if (rd) regs[rd] = ip + 4;
             ip += extend(imm,20);
             jmp = 1;
             break;
@@ -296,7 +362,7 @@ int main(int argc, char* argv[])
             regs[rd] = regs[rs1] >> rs2;
             break;
         case RV_SRAI:
-            regs[rd] = regs[rs1] >> rs2 | (regs[rs1] & 0x80000000);
+            regs[rd] = (regs[rs1] >> rs2) | (regs[rs1] & 0x80000000);
             break;
         case RV_ADD:
             regs[rd] = regs[rs1] + regs[rs2];
@@ -332,35 +398,13 @@ int main(int argc, char* argv[])
             printf("FENCE instruction encountered at ip=0x%08X\n",ip);
             break;
         case RV_ECALL:
-            printf("Syscall request encountered at ip=0x%08X\n",ip);
-            switch (regs[RVR_A7]) {
-            case RVSYS_CLOSE:
-                //TODO
-                regs[RVR_A0] = 0; // success
-                break;
-            case RVSYS_WRITE:
-                for (int j = 0; j < regs[RVR_A2]; j++) putchar(read8(regs[RVR_A1]+j,0));
-//                for (int k = RVR_A0; k <= RVR_A5; k++) printf("%d ",regs[k]);
-//                puts("");
-                regs[RVR_A0] = regs[RVR_A2]; // return length field
-                break;
-            case RVSYS_FSTAT:
-                //TODO
-                regs[RVR_A0] = 0; // success
-                break;
-            case RVSYS_EXIT:
-                ip = RAMSIZE;
-                break;
-            case RVSYS_BRK:
-                //TODO
-                regs[RVR_A0] = 0; // success
-                break;
-            default:
-                printf("Unimplemented syscall %d\n",regs[RVR_A7]);
-            }
+            if (debug & DBG_SYSCALL)
+                printf("Syscall request %u encountered at ip=0x%08X\n",regs[RVR_A7],ip);
+            if (ecall()) ip = RAMSIZE;
             break;
         case RV_EBREAK:
-            printf("Breakpoint encountered at ip=0x%08X\n",ip);
+            printf("Breakpoint encountered at ip=0x%08X\nPress Enter to continue\n",ip);
+            getchar();
             break;
         }
 
