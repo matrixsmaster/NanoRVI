@@ -1,3 +1,5 @@
+// (C) MatrixS_Master, 2020
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -5,6 +7,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include "riscv.h"
+#include "elf.h"
 
 #define NUMREGS 32
 #define RAMSIZE (10*1024*1024)
@@ -49,70 +52,42 @@ void readopts(const char* arg)
     }
 }
 
-int inbyte(char** in)
+uint32_t readelf(const char* fn)
 {
-    char tmp[3] = {0};
-    tmp[0] = *((*in)++);
-    tmp[1] = *((*in)++);
-    return strtol(tmp,NULL,16);
-}
+    FILE* f = fopen(fn,"rb");
+    assert(f);
 
-int readhex(const char* fn)
-{
-    FILE* fi = fopen(fn,"r");
-    if (!fi) return 0;
+    elf_header_t elfhdr;
+    assert(fread(&elfhdr,sizeof(elfhdr),1,f));
 
-    char buf[256];
-    char* ptr;
-    int seg,off = 0;
-    int start = 0;
-    while (fgets(buf,sizeof(buf),fi)) {
-        if (buf[0] != ':') continue;
+    const char magic[] = "\x7f" "ELF";
+    assert(!memcmp(magic,elfhdr.magic,4));
+    assert(elfhdr.ver == 1);
+    assert(elfhdr.class == 1);
+    assert(elfhdr.endianness == 1);
+    assert(elfhdr.machine == 0xF3);
 
-        ptr = buf + 1;
-        int len = inbyte(&ptr);
-        int adr = inbyte(&ptr) << 8;
-        adr |= inbyte(&ptr);
-        int typ = inbyte(&ptr);
+    fseek(f,elfhdr.proghdr_off,SEEK_SET);
 
-        switch (typ) {
-        case 0x00:
-            for (int i = 0; i < len; i++) {
-                assert(off+adr+i < RAMSIZE);
-                ram[off+adr+i] = inbyte(&ptr);
-            }
-            code_end = off+adr+len;
-            break;
+    for (uint16_t i = 0; i < elfhdr.proghdr_num; i++) {
+        elf_proghdr_t phdr;
+        assert(fread(&phdr,sizeof(phdr),1,f));
 
-        case 0x01:
-            break;
-
-        case 0x02:
-            off = inbyte(&ptr) << 8;
-            off |= inbyte(&ptr);
-            off <<= 4;
-            break;
-
-        case 0x03:
-            assert(len == 4);
-            seg = inbyte(&ptr) << 8;
-            seg |= inbyte(&ptr);
-            seg <<= 4;
-            off = inbyte(&ptr) << 8;
-            off |= inbyte(&ptr);
-            start = seg + off;
-            break;
-
-        default:
-            printf("Unknown record type 0x%02X\n",typ);
+        code_end = phdr.vaddr + phdr.memsz;
+        if (code_end >= RAMSIZE) {
+            printf("ELF Section %u is too big to fit in RAM\n",i);
             return 0;
         }
 
-        if (typ == 0x01) break;
+        size_t pos = ftell(f);
+        fseek(f,phdr.off,SEEK_SET);
+        assert(fread(ram+phdr.vaddr,phdr.filesz,1,f));
+        fseek(f,pos,SEEK_SET);
     }
-    fclose(fi);
 
-    return start;
+    fclose(f);
+
+    return elfhdr.entry;
 }
 
 riscv_op decode(uint32_t in, uint32_t* imm)
@@ -244,7 +219,7 @@ int main(int argc, char* argv[])
 
     if (argc > 2) readopts(argv[2]);
 
-    int ip = readhex(argv[1]);
+    int ip = readelf(argv[1]);
     assert(ip);
 
     regs[RVR_SP] = RAMSIZE - 4;

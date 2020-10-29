@@ -3,7 +3,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#define SIZE (1024*10)
+#define SIZE (1024*1024)
 
 int main()
 {
