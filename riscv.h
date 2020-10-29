@@ -2,6 +2,8 @@
 #ifndef RISCV_H_
 #define RISCV_H_
 
+#define RV_NUMREGS 32
+
 typedef enum {
     RV_LUI,
     RV_AUIPC,

@@ -9,9 +9,8 @@
 #include "riscv.h"
 #include "elf.h"
 
-#define NUMREGS 32
-#define RAMSIZE (10*1024*1024)
-#define STACKSIZE (2*1024*1024)
+#define RAMSIZE (40*1024*1024)
+#define STACKSIZE (20*1024*1024)
 #define HEAPSIZE (RAMSIZE-STACKSIZE)
 
 enum debug_opts {
@@ -20,6 +19,7 @@ enum debug_opts {
     DBG_MEM = 0x04,
     DBG_REGS = 0x08,
     DBG_INTERACTIVE = 0x10,
+    DBG_LOAD = 0x20,
 };
 
 static const struct {
@@ -31,10 +31,12 @@ static const struct {
         { 'm', DBG_MEM },
         { 'r', DBG_REGS },
         { 'i', DBG_INTERACTIVE },
+        { 'l', DBG_LOAD },
         { 0, 0 }
 };
 
-uint32_t regs[NUMREGS] = {0};
+uint32_t ip = 0;
+uint32_t regs[RV_NUMREGS] = {0};
 uint8_t ram[RAMSIZE] = {0};
 uint32_t code_end = 0;
 uint32_t debug = 0;
@@ -75,7 +77,7 @@ uint32_t readelf(const char* fn)
 
         code_end = phdr.vaddr + phdr.memsz;
         if (code_end >= RAMSIZE) {
-            printf("ELF Section %u is too big to fit in RAM\n",i);
+            printf("ELF Section %u is too big (0x%08X - 0x%08X) to fit in RAM\n",i,phdr.vaddr,code_end);
             return 0;
         }
 
@@ -83,6 +85,9 @@ uint32_t readelf(const char* fn)
         fseek(f,phdr.off,SEEK_SET);
         assert(fread(ram+phdr.vaddr,phdr.filesz,1,f));
         fseek(f,pos,SEEK_SET);
+
+        if (debug & DBG_LOAD)
+            printf("Section %u loaded, 0x%08X - 0x%08X, %u bytes\n",i,phdr.vaddr,code_end,phdr.memsz);
     }
 
     fclose(f);
@@ -113,6 +118,11 @@ riscv_op decode(uint32_t in, uint32_t* imm)
             return i;
         }
     }
+
+    printf("Unable to decode instruction 0x%08X @ 0x%08X\n",in,ip);
+    for (int i = 0; i < 32; i++, in<<=1) putchar((in & 0x80000000)? '1':'0');
+    putchar('\n');
+
     return RV_EBREAK + 1; //invalid op
 }
 
@@ -179,6 +189,9 @@ void write32(uint32_t addr, uint32_t val)
 
 uint8_t ecall()
 {
+    if (debug & DBG_SYSCALL)
+        printf("Syscall request %u encountered at ip=0x%08X\n",regs[RVR_A7],ip);
+
     switch (regs[RVR_A7]) {
     case RVSYS_CLOSE:
         //TODO
@@ -196,6 +209,7 @@ uint8_t ecall()
         break;
 
     case RVSYS_EXIT:
+        if (debug & DBG_SYSCALL) printf("Exiting with code %u\n",regs[RVR_A0]);
         return 1;
 
     case RVSYS_BRK:
@@ -213,13 +227,19 @@ uint8_t ecall()
     return 0;
 }
 
+void ebreak()
+{
+    printf("Breakpoint encountered at ip=0x%08X\nPress Enter to continue\n",ip);
+    getchar();
+}
+
 int main(int argc, char* argv[])
 {
     assert(argc > 1);
 
     if (argc > 2) readopts(argv[2]);
 
-    int ip = readelf(argv[1]);
+    ip = readelf(argv[1]);
     assert(ip);
 
     regs[RVR_SP] = RAMSIZE - 4;
@@ -254,6 +274,8 @@ int main(int argc, char* argv[])
 
         if (debug & DBG_INTERACTIVE) getchar();
 
+        uint8_t shf;
+        uint32_t tmp;
         uint32_t jmp = 0;
         switch (op) {
         case RV_LUI:
@@ -268,8 +290,9 @@ int main(int argc, char* argv[])
             jmp = 1;
             break;
         case RV_JALR:
-            if (rd) regs[rd] = ip + 4;
-            ip = (regs[rs1] + extend(imm,11)) & 0xFFFFFFFE;
+            tmp = ip;
+            ip = regs[rs1] + extend(imm,11);
+            if (rd) regs[rd] = tmp + 4;
             jmp = 1;
             break;
         case RV_BEQ:
@@ -345,7 +368,8 @@ int main(int argc, char* argv[])
             regs[rd] = regs[rs1] >> rs2;
             break;
         case RV_SRAI:
-            regs[rd] = (regs[rs1] >> rs2) | (regs[rs1] & 0x80000000);
+            tmp = (regs[rs1] & 0x80000000)? ((1U << rs2) - 1) << (32 - rs2) : 0;
+            regs[rd] = (regs[rs1] >> rs2) | tmp;
             break;
         case RV_ADD:
             regs[rd] = regs[rs1] + regs[rs2];
@@ -369,7 +393,9 @@ int main(int argc, char* argv[])
             regs[rd] = regs[rs1] >> (regs[rs2] & 0x1F);
             break;
         case RV_SRA:
-            regs[rd] = (regs[rs1] >> (regs[rs2] & 0x1F)) | (regs[rs1] & 0x80000000);
+            shf = regs[rs2] & 0x1F;
+            tmp = (regs[rs1] & 0x80000000)? ((1U << shf) - 1) << (32 - shf) : 0;
+            regs[rd] = (regs[rs1] >> shf) | tmp;
             break;
         case RV_OR:
             regs[rd] = regs[rs1] | regs[rs2];
@@ -378,16 +404,13 @@ int main(int argc, char* argv[])
             regs[rd] = regs[rs1] & regs[rs2];
             break;
         case RV_FENCE:
-            printf("FENCE instruction encountered at ip=0x%08X\n",ip);
+            // do nothing
             break;
         case RV_ECALL:
-            if (debug & DBG_SYSCALL)
-                printf("Syscall request %u encountered at ip=0x%08X\n",regs[RVR_A7],ip);
             if (ecall()) ip = RAMSIZE;
             break;
         case RV_EBREAK:
-            printf("Breakpoint encountered at ip=0x%08X\nPress Enter to continue\n",ip);
-            getchar();
+            ebreak();
             break;
         }
 
