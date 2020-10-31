@@ -4,6 +4,10 @@
 // Revision 1.25
 //
 // This work is licensed under the MIT License. See included LICENSE.TXT.
+//
+// Modified by Dmitry 'MatrixS_Master' Solovyev, 2015-2020
+//
+// RISC-V Compile: riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -mcmodel=medany -O2 -o 8086tiny.elf 8086tiny.c
 
 #define USECONSOLE
 
@@ -295,9 +299,9 @@ int main(void)
 	{
 //		printf("IP = %hu\tOP = 0x%02X\tcyc = %u\r\n",reg_ip,*opcode_stream,cyc++);
 //		printf("0x%02X,\n",*opcode_stream);
-		if (cyc > 65885 && cyc % 7 == 0) {
-			//getchar();
-		}
+//		if (cyc > 65885 && cyc % 7 == 0) {
+//			getchar();
+//		}
 
 		// Set up variables to prepare for decoding an opcode
 		set_opcode(*opcode_stream);
@@ -669,7 +673,7 @@ int main(void)
 						putchar(*regs8); //write(1, regs8, 1)
 #endif
                         output = *regs8;
-						if (*regs8 == '3') return 0;
+//						if (*regs8 == '3') return 0;
 					OPCODE 1: // GET_RTC
 					 {
 //						uint8_t* tmp = mem + SEGREG(REG_ES, REG_BX,);

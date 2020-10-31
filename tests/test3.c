@@ -24,10 +24,10 @@ int main()
         crc += (char)i;
         test[i] = (char)i;
         if (test[i] != (char)i) printf("ERROR @ %d: expected 0x%02X, got 0x%02X\n",i,(char)i,test[i]);
-        //__asm ( "EBREAK" );
     }
 
     printf("Original CRC = %u\n",crc);
+    __asm ( "EBREAK" );
 
     crc = 0;
     for (int i = 0; i < SIZE; i++) {
