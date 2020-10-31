@@ -126,21 +126,11 @@ riscv_op decode(uint32_t in, uint32_t* imm)
     return RV_EBREAK + 1; //invalid op
 }
 
-int32_t extend(uint32_t x, int bit)
-{
-    uint32_t c = (x & (1U << bit));
-    while (++bit < 32) {
-        c <<= 1;
-        x |= c;
-    }
-    return (int32_t)x;
-}
-
 uint32_t read8(uint32_t addr, int sign)
 {
     assert(addr < RAMSIZE);
     uint8_t* ptr = ram + addr;
-    uint32_t val = sign? (uint32_t)extend(*ptr,7) : (uint32_t)(*ptr);
+    uint32_t val = sign? (uint32_t)RV_EXTEND(*ptr,7) : (uint32_t)(*ptr);
     if (debug & DBG_MEM) printf("Read %s byte from 0x%08X: 0x%02X\n",(sign? "signed":"unsigned"),addr,val);
     return val;
 }
@@ -149,7 +139,7 @@ uint32_t read16(uint32_t addr, int sign)
 {
     assert(addr < RAMSIZE);
     uint16_t* ptr = (uint16_t*)(ram + addr);
-    uint32_t val = sign? (uint32_t)extend(*ptr,15) : (uint32_t)(*ptr);
+    uint32_t val = sign? (uint32_t)RV_EXTEND(*ptr,15) : (uint32_t)(*ptr);
     if (debug & DBG_MEM) printf("Read %s half-word from 0x%08X: 0x%02X\n",(sign? "signed":"unsigned"),addr,val);
     return val;
 }
@@ -286,80 +276,80 @@ int main(int argc, char* argv[])
             break;
         case RV_JAL:
             if (rd) regs[rd] = ip + 4;
-            ip += extend(imm,20);
+            ip += RV_EXTEND(imm,20);
             jmp = 1;
             break;
         case RV_JALR:
             tmp = ip;
-            ip = regs[rs1] + extend(imm,11);
+            ip = regs[rs1] + RV_EXTEND(imm,11);
             if (rd) regs[rd] = tmp + 4;
             jmp = 1;
             break;
         case RV_BEQ:
-            ip += (regs[rs1] == regs[rs2])? extend(imm,12):4;
+            ip += (regs[rs1] == regs[rs2])? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_BNE:
-            ip += (regs[rs1] != regs[rs2])? extend(imm,12):4;
+            ip += (regs[rs1] != regs[rs2])? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_BLT:
-            ip += ((int32_t)(regs[rs1]) < (int32_t)(regs[rs2]))? extend(imm,12):4;
+            ip += ((int32_t)(regs[rs1]) < (int32_t)(regs[rs2]))? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_BGE:
-            ip += ((int32_t)(regs[rs1]) >= (int32_t)(regs[rs2]))? extend(imm,12):4;
+            ip += ((int32_t)(regs[rs1]) >= (int32_t)(regs[rs2]))? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_BLTU:
-            ip += (regs[rs1] < regs[rs2])? extend(imm,12):4;
+            ip += (regs[rs1] < regs[rs2])? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_BGEU:
-            ip += (regs[rs1] >= regs[rs2])? extend(imm,12):4;
+            ip += (regs[rs1] >= regs[rs2])? RV_EXTEND(imm,12):4;
             jmp = 1;
             break;
         case RV_LB:
-            regs[rd] = read8(regs[rs1]+extend(imm,11),1);
+            regs[rd] = read8(regs[rs1]+RV_EXTEND(imm,11),1);
             break;
         case RV_LH:
-            regs[rd] = read16(regs[rs1]+extend(imm,11),1);
+            regs[rd] = read16(regs[rs1]+RV_EXTEND(imm,11),1);
             break;
         case RV_LW:
-            regs[rd] = read32(regs[rs1]+extend(imm,11));
+            regs[rd] = read32(regs[rs1]+RV_EXTEND(imm,11));
             break;
         case RV_LBU:
-            regs[rd] = read8(regs[rs1]+extend(imm,11),0);
+            regs[rd] = read8(regs[rs1]+RV_EXTEND(imm,11),0);
             break;
         case RV_LHU:
-            regs[rd] = read16(regs[rs1]+extend(imm,11),0);
+            regs[rd] = read16(regs[rs1]+RV_EXTEND(imm,11),0);
             break;
         case RV_SB:
-            write8(regs[rs1]+extend(imm,11),regs[rs2]);
+            write8(regs[rs1]+RV_EXTEND(imm,11),regs[rs2]);
             break;
         case RV_SH:
-            write16(regs[rs1]+extend(imm,11),regs[rs2]);
+            write16(regs[rs1]+RV_EXTEND(imm,11),regs[rs2]);
             break;
         case RV_SW:
-            write32(regs[rs1]+extend(imm,11),regs[rs2]);
+            write32(regs[rs1]+RV_EXTEND(imm,11),regs[rs2]);
             break;
         case RV_ADDI:
-            regs[rd] = (uint32_t)((int32_t)(regs[rs1]) + extend(imm,11));
+            regs[rd] = (uint32_t)((int32_t)(regs[rs1]) + RV_EXTEND(imm,11));
             break;
         case RV_SLTI:
-            regs[rd] = ((int32_t)(regs[rs1]) < extend(imm,11))? 1:0;
+            regs[rd] = ((int32_t)(regs[rs1]) < RV_EXTEND(imm,11))? 1:0;
             break;
         case RV_SLTIU:
-            regs[rd] = (regs[rs1] < (uint32_t)(extend(imm,11)))? 1:0;
+            regs[rd] = (regs[rs1] < (uint32_t)(RV_EXTEND(imm,11)))? 1:0;
             break;
         case RV_XORI:
-            regs[rd] = regs[rs1] ^ extend(imm,11);
+            regs[rd] = regs[rs1] ^ RV_EXTEND(imm,11);
             break;
         case RV_ORI:
-            regs[rd] = regs[rs1] | extend(imm,11);
+            regs[rd] = regs[rs1] | RV_EXTEND(imm,11);
             break;
         case RV_ANDI:
-            regs[rd] = regs[rs1] & extend(imm,11);
+            regs[rd] = regs[rs1] & RV_EXTEND(imm,11);
             break;
         case RV_SLLI:
             regs[rd] = regs[rs1] << rs2;
@@ -404,7 +394,6 @@ int main(int argc, char* argv[])
             regs[rd] = regs[rs1] & regs[rs2];
             break;
         case RV_FENCE:
-            // do nothing
             break;
         case RV_ECALL:
             if (ecall()) ip = RAMSIZE;
