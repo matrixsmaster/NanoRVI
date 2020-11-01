@@ -11,4 +11,4 @@ Use `do.sh` script to run through all instruction tests automatically.
 
 ___Copyright (C) Dmitry 'MatrixS_Master' Solovyev, 2020___
 
-___This work is licensed under the MIT License. See included LICENSE.TXT___
+___This work is licensed under the MIT License. See included LICENSE file___

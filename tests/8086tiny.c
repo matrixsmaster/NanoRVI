@@ -3,11 +3,40 @@
 //
 // Revision 1.25
 //
-// This work is licensed under the MIT License. See included LICENSE.TXT.
+// This work is licensed under the MIT License. See below.
 //
 // Modified by Dmitry 'MatrixS_Master' Solovyev, 2015-2020
 //
 // RISC-V Compile: riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -mcmodel=medany -O2 -o 8086tiny.elf 8086tiny.c
+//
+// Disclaimer: this code is very dirty. It was hardly readable in its original form, but I've made
+// it even worse. Sorry about that, but this code is intended to serve as an ultimate instruction set
+// torture tester. I'm constantly changing it when experimanting with different stuff. So if you can't
+// bear with it, please remove this file ;)
+//
+/*
+ * The MIT License (MIT)
+
+Copyright (c) 2013-2014 Adrian Cable - http://www.megalith.co.uk/8086tiny
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+* */
 
 #define USECONSOLE
 
