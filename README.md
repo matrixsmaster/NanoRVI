@@ -1,4 +1,4 @@
-## A very minimalistic implementation of RISC-V 32i ISA emulator, capable of running serious code
+## NanoRVI - a very minimalistic implementation of RISC-V 32i ISA emulator, capable of running serious code
 
 Probably the simpleset implementation in the existence. The emulation core is only about 288 lines of pure C code.
 
