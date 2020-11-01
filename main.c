@@ -196,7 +196,7 @@ uint8_t ecall()
         break;
 
     case RVSYS_WRITE:
-        for (int j = 0; j < regs[RVR_A2]; j++) putchar(read8(regs[RVR_A1]+j,0));
+        for (unsigned j = 0; j < regs[RVR_A2]; j++) putchar(read8(regs[RVR_A1]+j,0));
         regs[RVR_A0] = regs[RVR_A2]; // return length field
         break;
 
@@ -241,7 +241,7 @@ int main(int argc, char* argv[])
 
     regs[RVR_SP] = RAMSIZE - 4;
 
-    while (ip >= 0 && ip < RAMSIZE) {
+    while (ip < RAMSIZE) {
         assert((ip & 3) == 0);
         regs[RVR_ZERO] = 0;
 

@@ -61,20 +61,20 @@ static const char* riscv_encode[] = {
 //  "12345678123456781234567812345678",
     "[ZYXWVUTSRQPONMLKJIH     0110111",
     "[ZYXWVUTSRQPONMLKJIH     0010111",
-    "PFEDCBA@?>=GONMLKJIH     1101111", // wow, a guy who made this encoding is obviously as smart as a brick
+    "PFEDCBA@?>=GONMLKJIH     1101111",
     "GFEDCBA@?>=<     000     1100111",
-    "HFEDCBA          000@?>=G1100011", // this isn't much clever
+    "HFEDCBA          000@?>=G1100011",
     "HFEDCBA          001@?>=G1100011",
     "HFEDCBA          100@?>=G1100011",
     "HFEDCBA          101@?>=G1100011",
     "HFEDCBA          110@?>=G1100011",
     "HFEDCBA          111@?>=G1100011",
-    "GFEDCBA@?>=<     000     0000011", // yeah, keep moving that shit to the left, and then to the right, and then back again!
+    "GFEDCBA@?>=<     000     0000011",
     "GFEDCBA@?>=<     001     0000011",
     "GFEDCBA@?>=<     010     0000011",
     "GFEDCBA@?>=<     100     0000011",
     "GFEDCBA@?>=<     101     0000011",
-    "GFEDCBA          000@?>=<0100011", // you see, it's fun!
+    "GFEDCBA          000@?>=<0100011",
     "GFEDCBA          001@?>=<0100011",
     "GFEDCBA          010@?>=<0100011",
     "GFEDCBA@?>=<     000     0010011",
@@ -85,7 +85,7 @@ static const char* riscv_encode[] = {
     "GFEDCBA@?>=<     111     0010011",
     "0000000          001     0010011",
     "0000000          101     0010011",
-    "0100000          101     0010011", // what kind of a weed he is smoking?!
+    "0100000          101     0010011",
     "0000000          000     0110011",
     "0100000          000     0110011",
     "0000000          001     0110011",
@@ -98,7 +98,7 @@ static const char* riscv_encode[] = {
     "0000000          111     0110011",
     "                 000     0001111",
     "00000000000000000000000001110011",
-    "00000000000100000000000001110011"  // OK, whatever
+    "00000000000100000000000001110011"
 };
 
 static const char* riscv_names[] = {
