@@ -12,6 +12,9 @@
 
 #define RV_NUMREGS 32
 
+#define RV_ENCODE_SYM_DONT_CARE ' '
+#define RV_ENCODE_SYM_IMM_START '<'
+
 #define RV_EXTEND(X,B) ((int32_t)( ((X) & (1U << (B))) ? ((X) | (((1U << (32 - ((B)+1))) - 1) << ((B)+1))) : (X) ))
 
 typedef enum {

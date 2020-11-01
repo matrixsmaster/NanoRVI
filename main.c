@@ -107,11 +107,11 @@ riscv_op decode(uint32_t in, uint32_t* imm)
     for (int i = 0; i <= RV_EBREAK; i++) {
         uint32_t tmp = 0;
         int fnd = 1;
-        for (int j = 0; (j < 32) && fnd; j++) {
-            if (riscv_encode[i][j] == ' ') continue;
-            if (riscv_encode[i][j] >= '<') {
+        for (int j = 31; (j >= 0) && fnd; j--) {
+            if (riscv_encode[i][j] == RV_ENCODE_SYM_DONT_CARE) continue;
+            if (riscv_encode[i][j] >= RV_ENCODE_SYM_IMM_START) {
                 uint32_t d = (in & (1U << (31-j)))? 1:0;
-                d <<= riscv_encode[i][j] - '<';
+                d <<= riscv_encode[i][j] - RV_ENCODE_SYM_IMM_START;
                 tmp |= d;
             } else {
                 char d = (in & (1U << (31-j)))? '1':'0';
