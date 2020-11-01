@@ -28,11 +28,13 @@ int main()
 
     printf("Original CRC = %u\n",crc);
     __asm ( "EBREAK" );
+    printf("Continuing execution...\n");
 
     crc = 0;
     for (int i = 0; i < SIZE; i++) {
         if (test[i] != (char)i) printf("ERROR @ %d: expected 0x%02X, got 0x%02X\n",i,(char)i,test[i]);
         crc += test[i];
+        if (i % 1024 == 0) printf("Checking... %d KiB done\n",i/1024);
     }
 
     printf("New CRC = %u\n",crc);
