@@ -15,6 +15,7 @@
 #define RV_ENCODE_SYM_DONT_CARE ' '
 #define RV_ENCODE_SYM_IMM_START '<'
 
+// I made this to make sign extend easily optimizable by a compiler - should be converted into 3 or 4 instructions
 #define RV_EXTEND(X,B) ((int32_t)( ((X) & (1U << (B))) ? ((X) | (((1U << (32 - ((B)+1))) - 1) << ((B)+1))) : (X) ))
 
 typedef enum {

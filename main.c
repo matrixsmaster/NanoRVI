@@ -42,12 +42,13 @@ static const struct {
         { 0, 0 }
 };
 
-uint32_t ip = 0;
-uint32_t regs[RV_NUMREGS] = {0};
-uint8_t ram[RAMSIZE] = {0};
-uint32_t code_end = 0;
-uint32_t debug = 0;
+uint32_t ip = 0;                    /* The Instruction Pointer */
+uint32_t regs[RV_NUMREGS] = {0};    /* CPU Registers */
+uint8_t ram[RAMSIZE] = {0};         /* RAM array */
+uint32_t code_end = 0;              /* Current program break point */
+uint32_t debug = 0;                 /* Active debug flags */
 
+// Read command line argument and parse debug options
 void readopts(const char* arg)
 {
     while (*arg) {
@@ -61,14 +62,17 @@ void readopts(const char* arg)
     }
 }
 
+// Load and parse an ELF file, and put it properly into RAM
 uint32_t readelf(const char* fn)
 {
     FILE* f = fopen(fn,"rb");
     assert(f);
 
+    // get ELF header
     elf_header_t elfhdr;
     assert(fread(&elfhdr,sizeof(elfhdr),1,f));
 
+    // check that it's of correct version and machine type
     const char magic[] = "\x7f" "ELF";
     assert(!memcmp(magic,elfhdr.magic,4));
     assert(elfhdr.ver == 1);
@@ -76,20 +80,26 @@ uint32_t readelf(const char* fn)
     assert(elfhdr.endianness == 1);
     assert(elfhdr.machine == 0xF3);
 
+    // jump into program headers section
     fseek(f,elfhdr.proghdr_off,SEEK_SET);
 
+    // for each header block
     for (uint16_t i = 0; i < elfhdr.proghdr_num; i++) {
         elf_proghdr_t phdr;
+        // get data
         assert(fread(&phdr,sizeof(phdr),1,f));
 
+        // would it fit into our RAM ?
         code_end = phdr.vaddr + phdr.memsz;
         if (code_end >= RAMSIZE) {
             printf("ELF Section %u is too big (0x%08X - 0x%08X) to fit in RAM\n",i,phdr.vaddr,code_end);
             return 0;
         }
 
+        // jump to start of the actual data referenced in this section
         size_t pos = ftell(f);
         fseek(f,phdr.off,SEEK_SET);
+        // and load it all up
         assert(fread(ram+phdr.vaddr,phdr.filesz,1,f));
         fseek(f,pos,SEEK_SET);
 
@@ -98,34 +108,45 @@ uint32_t readelf(const char* fn)
     }
 
     fclose(f);
-
     return elfhdr.entry;
 }
 
+// Decode an instruction and extract its immediate argument at the same time
 riscv_op decode(uint32_t in, uint32_t* imm)
 {
+    // for each opcode template in the 'riscv_encode' table
     for (int i = 0; i <= RV_EBREAK; i++) {
         uint32_t tmp = 0;
         int fnd = 1;
+
+        // go from LSB to MSB and compare known bits
         for (int j = 31; (j >= 0) && fnd; j--) {
+            // skip fields
             if (riscv_encode[i][j] == RV_ENCODE_SYM_DONT_CARE) continue;
+
             if (riscv_encode[i][j] >= RV_ENCODE_SYM_IMM_START) {
+                // combine bits of immediate argument
                 uint32_t d = (in & (1U << (31-j)))? 1:0;
                 d <<= riscv_encode[i][j] - RV_ENCODE_SYM_IMM_START;
                 tmp |= d;
+
             } else {
+                // compare static (fixed) bits
                 char d = (in & (1U << (31-j)))? '1':'0';
                 if (riscv_encode[i][j] != d) {
                     fnd = 0;
                 }
             }
         }
+
+        // we found our opcode and extracted immediate argument
         if (fnd) {
             *imm = tmp;
             return i;
         }
     }
 
+    // dunno what was that
     printf("Unable to decode instruction 0x%08X @ 0x%08X\n",in,ip);
     for (int i = 0; i < 32; i++, in<<=1) putchar((in & 0x80000000)? '1':'0');
     putchar('\n');
@@ -133,6 +154,7 @@ riscv_op decode(uint32_t in, uint32_t* imm)
     return RV_EBREAK + 1; //invalid op
 }
 
+// RAM read access functions
 uint32_t read8(uint32_t addr, int sign)
 {
     assert(addr < RAMSIZE);
@@ -160,6 +182,7 @@ uint32_t read32(uint32_t addr)
     return val;
 }
 
+// RAM write access functions
 void write8(uint32_t addr, uint32_t val)
 {
     assert(addr < RAMSIZE);
@@ -184,11 +207,14 @@ void write32(uint32_t addr, uint32_t val)
     if (debug & DBG_MEM) printf("Write word to 0x%08X: 0x%02X\n",addr,val);
 }
 
+// ECALL (a.k.a. SYSCALL) instruction implementation
 uint8_t ecall()
 {
+    // trace - syscalls
     if (debug & DBG_SYSCALL)
         printf("Syscall request %u encountered at ip=0x%08X\n",regs[RVR_A7],ip);
 
+    // execute known syscall
     switch (regs[RVR_A7]) {
     case RVSYS_CLOSE:
         //TODO
@@ -224,27 +250,48 @@ uint8_t ecall()
     return 0;
 }
 
+// EBREAK instruction implementation
 void ebreak()
 {
     printf("Breakpoint encountered at ip=0x%08X\nPress Enter to continue\n",ip);
+    // simply stop there, probably I'll fit some debug output later
     getchar();
 }
 
+// Emulator entry point :)
 int main(int argc, char* argv[])
 {
-    assert(argc > 1);
+    if (argc < 2) {
+        printf("Usage: %s <program.elf> [debug_options]\n",argv[0]);
+        printf("Available debug options are:\n");
+        printf("\tt - enable trace output\n");
+        printf("\ts - verbose syscalls\n");
+        printf("\tm - trace all memory transactions\n");
+        printf("\tr - print registers contents in trace output\n");
+        printf("\ti - enable interactive, step-by-step mode\n");
+        printf("\tl - verbose program loading procedure\n");
+        return 1;
+    }
 
+    // get debug options (if present)
     if (argc > 2) readopts(argv[2]);
 
+    // read and parse ELF file
     ip = readelf(argv[1]);
-    assert(ip);
+    if (!ip) {
+        fprintf(stderr,"ERROR: unable to load ELF file\n");
+        return 2;
+    }
 
+    // set the bottom of the stack to the end of RAM
     regs[RVR_SP] = RAMSIZE - 4;
 
+    // start executing RISC-V instructions
     while (ip < RAMSIZE) {
-        assert((ip & 3) == 0);
-        regs[RVR_ZERO] = 0;
+        assert((ip & 3) == 0); // sanity check
+        regs[RVR_ZERO] = 0; // to simplify things, x0 is just a regular register
 
+        // read next 32-bit instruction, extract known fields and decode the opcode
         uint32_t inst = read32(ip);
         uint32_t imm = 0;
         uint32_t rd = (inst >> 7) & 0x1F;
@@ -253,6 +300,7 @@ int main(int argc, char* argv[])
         riscv_op op = decode(inst,&imm);
         assert(op <= RV_EBREAK);
 
+        // trace - part 1
         if (debug & DBG_TRACE) {
             printf("0x%08X: %s ",ip,riscv_names[op]);
             if (riscv_useregs[op][0] == '1')
@@ -264,13 +312,16 @@ int main(int argc, char* argv[])
             printf("(0x%06X) SP=%d (0x%08X)\n",imm,regs[RVR_SP],regs[RVR_SP]);
         }
 
+        // trace - part 2, registers
         if (debug & DBG_REGS) {
             for (int k = 1; k < 32; k++) printf("%d ",regs[k]);
             puts("");
         }
 
+        // trace - part 3, interactive wait
         if (debug & DBG_INTERACTIVE) getchar();
 
+        // execute instruction according to riscv-spec-20191213
         uint8_t shf;
         uint32_t tmp;
         uint32_t jmp = 0;
@@ -413,5 +464,6 @@ int main(int argc, char* argv[])
         if (!jmp) ip += 4;
     }
 
+    // To make it clear we haven't crashed, but exited peacefully...
     puts("Quit");
 }
