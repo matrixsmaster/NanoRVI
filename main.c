@@ -25,6 +25,7 @@ static void usage(const char* progname)
     printf("\t-s: set the size of the stack (in KiB)\n");
     printf("\t-f: execute ELF file\n");
     printf("\t-d: set debug options (string of characters, see below)\n");
+    printf("\t-g: enable graphics mode and set frame size (\"WxH\")\n");
     printf("\nAvailable debug options are:\n");
     printf("\tt - enable trace output\n");
     printf("\ts - verbose syscalls\n");
@@ -52,6 +53,7 @@ static bool read_args(rv_interface* iface, int argc, char* argv[])
             case 's': fsm = 2; break;
             case 'f': fsm = 3; break;
             case 'd': fsm = 4; break;
+            case 'g': fsm = 5; break;
             default:
                 printf("ERROR: Unknown command switch '%c'\n",argv[i][1]);
                 return false;
@@ -84,6 +86,15 @@ static bool read_args(rv_interface* iface, int argc, char* argv[])
             fsm = 0;
             break;
 
+        case 5: // Graphics ON
+            if (!strchr(argv[i],'x')) {
+                printf("ERROR: malformed graphics resolution argument\n");
+                return false;
+            }
+            iface->frame_w = atoi(argv[i]);
+            iface->frame_h = atoi(strchr(argv[i],'x')+1);
+            break;
+
         default:
             fsm = 0;
         }
@@ -107,7 +118,10 @@ int main(int argc, char* argv[])
     }
 
     // Prepare VM for execution
-    rv_iface_start(&iface);
+    if (!rv_iface_start(&iface)) {
+        printf("ERROR: unable to start virtual machine\n");
+        return 2;
+    }
 
     // Execute it until finished (or until the thermal death of the Universe)
     while (rv_iface_step(&iface)) ;

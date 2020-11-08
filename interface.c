@@ -14,6 +14,7 @@
 #include "interface.h"
 #include "riscv.h"
 #include "debug.h"
+#include "sdl_wrapper.h"
 
 #define RAM_BOUNDARY_CHECK(R) rv_interface* iface = (rv_interface*)st->user; \
     if (addr >= iface->ram_size) { \
@@ -145,7 +146,7 @@ bool rv_iface_resize(rv_interface* iface)
     return true;
 }
 
-void rv_iface_start(rv_interface* iface)
+bool rv_iface_start(rv_interface* iface)
 {
     iface->vm.user = iface; // create circular pointer
 
@@ -168,6 +169,17 @@ void rv_iface_start(rv_interface* iface)
 
     // Set other limits
     iface->heap_max = iface->ram_size - iface->stack_size;
+
+    // Finally, if we're using graphics, let's initialize it
+    if (iface->frame_w && iface->frame_h) {
+        int r = sdl_wrapper_init(iface->frame_w,iface->frame_h,"NanoRVI");
+        if (r) {
+            printf("ERROR: unable to initialize graphics (error code = %d)\n",r);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool rv_iface_step(rv_interface* iface)
@@ -204,4 +216,5 @@ bool rv_iface_step(rv_interface* iface)
 void rv_iface_stop(rv_interface* iface)
 {
     if (iface->ram) free(iface->ram);
+    if (iface->frame_w || iface->frame_h) sdl_wrapper_destroy();
 }

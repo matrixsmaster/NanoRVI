@@ -28,6 +28,8 @@ typedef struct {
     uint32_t start;
     uint32_t debug;
     uint32_t error;
+    uint16_t frame_w;
+    uint16_t frame_h;
 } rv_interface;
 
 // Syscall codes (see "syscall.h" for values)
@@ -41,7 +43,7 @@ enum rv_syscall {
 
 void rv_iface_init(rv_interface* iface);
 bool rv_iface_resize(rv_interface* iface);
-void rv_iface_start(rv_interface* iface);
+bool rv_iface_start(rv_interface* iface);
 bool rv_iface_step(rv_interface* iface);
 void rv_iface_stop(rv_interface* iface);
 

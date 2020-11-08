@@ -7,9 +7,9 @@ APP = nano_rvi
 CC = gcc
 LD = gcc
 
-OBJS = main.o riscv.o interface.o debug.o elf.o
+OBJS = main.o riscv.o interface.o debug.o elf.o sdl_wrapper.o
 CCFLAGS = -Wall -Wextra -g -O0
-LDFLAGS = -Wall -g -Wl,-gc-sections
+LDFLAGS = -Wall -g -Wl,-gc-sections -lSDL2
 
 all: $(OBJS)
 	$(LD) $(LDFLAGS) -o $(APP) $(OBJS)
