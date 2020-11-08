@@ -12,8 +12,7 @@ cat enum.txt | sort | awk '{ print tolower($1) }' | while read i ; do
     else
         echo "FAILURE"
         nano_rvi -m 1024 -s 512 -f a.out -d sltr
+        echo "Failed to execute test: $i"
         exit 3
     fi
-done
-
-echo "All tests finished successfully"
+done && echo "All tests finished successfully"
