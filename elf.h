@@ -10,6 +10,13 @@
 #ifndef ELF_H_
 #define ELF_H_
 
+#include <stdbool.h>
+#include <inttypes.h>
+#include "interface.h"
+
+#define ELF_LOAD_FAILURE 0xFFFFFFFF
+#define ELF_RISCV_MACH_CODE 0xF3
+
 typedef struct {
     char magic[4];
     uint8_t class;
@@ -43,5 +50,7 @@ typedef struct {
     uint32_t flags;
     uint32_t align;
 } elf_proghdr_t;
+
+bool readelf(rv_interface* vm, const char* fn);
 
 #endif /* ELF_H_ */

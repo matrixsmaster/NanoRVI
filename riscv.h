@@ -10,10 +10,14 @@
 #ifndef RISCV_H_
 #define RISCV_H_
 
+#include <inttypes.h>
+
 #define RV_NUMREGS 32
 
 #define RV_ENCODE_SYM_DONT_CARE ' '
 #define RV_ENCODE_SYM_IMM_START '<'
+
+#define RV_USE_DISASM
 
 // I made this to make sign extend easily optimizable by a compiler - should be converted into 3 or 4 instructions
 #define RV_EXTEND(X,B) ((int32_t)( ((X) & (1U << (B))) ? ((X) | (((1U << (32 - ((B)+1))) - 1) << ((B)+1))) : (X) ))
@@ -61,138 +65,6 @@ typedef enum {
     RV_EBREAK
 } riscv_op;
 
-static const char* riscv_encode[] = {
-//  "12345678123456781234567812345678",
-    "[ZYXWVUTSRQPONMLKJIH     0110111",
-    "[ZYXWVUTSRQPONMLKJIH     0010111",
-    "PFEDCBA@?>=GONMLKJIH     1101111",
-    "GFEDCBA@?>=<     000     1100111",
-    "HFEDCBA          000@?>=G1100011",
-    "HFEDCBA          001@?>=G1100011",
-    "HFEDCBA          100@?>=G1100011",
-    "HFEDCBA          101@?>=G1100011",
-    "HFEDCBA          110@?>=G1100011",
-    "HFEDCBA          111@?>=G1100011",
-    "GFEDCBA@?>=<     000     0000011",
-    "GFEDCBA@?>=<     001     0000011",
-    "GFEDCBA@?>=<     010     0000011",
-    "GFEDCBA@?>=<     100     0000011",
-    "GFEDCBA@?>=<     101     0000011",
-    "GFEDCBA          000@?>=<0100011",
-    "GFEDCBA          001@?>=<0100011",
-    "GFEDCBA          010@?>=<0100011",
-    "GFEDCBA@?>=<     000     0010011",
-    "GFEDCBA@?>=<     010     0010011",
-    "GFEDCBA@?>=<     011     0010011",
-    "GFEDCBA@?>=<     100     0010011",
-    "GFEDCBA@?>=<     110     0010011",
-    "GFEDCBA@?>=<     111     0010011",
-    "0000000          001     0010011",
-    "0000000          101     0010011",
-    "0100000          101     0010011",
-    "0000000          000     0110011",
-    "0100000          000     0110011",
-    "0000000          001     0110011",
-    "0000000          010     0110011",
-    "0000000          011     0110011",
-    "0000000          100     0110011",
-    "0000000          101     0110011",
-    "0100000          101     0110011",
-    "0000000          110     0110011",
-    "0000000          111     0110011",
-    "                 000     0001111",
-    "00000000000000000000000001110011",
-    "00000000000100000000000001110011"
-};
-
-static const char* riscv_names[] = {
-    "LUI",
-    "AUIPC",
-    "JAL",
-    "JALR",
-    "BEQ",
-    "BNE",
-    "BLT",
-    "BGE",
-    "BLTU",
-    "BGEU",
-    "LB",
-    "LH",
-    "LW",
-    "LBU",
-    "LHU",
-    "SB",
-    "SH",
-    "SW",
-    "ADDI",
-    "SLTI",
-    "SLTIU",
-    "XORI",
-    "ORI",
-    "ANDI",
-    "SLLI",
-    "SRLI",
-    "SRAI",
-    "ADD",
-    "SUB",
-    "SLL",
-    "SLT",
-    "SLTU",
-    "XOR",
-    "SRL",
-    "SRA",
-    "OR",
-    "AND",
-    "FENCE",
-    "ECALL",
-    "EBREAK"
-};
-
-#if 1
-static const char* riscv_useregs[] = {
-    "100",
-    "100",
-    "100",
-    "110",
-    "011",
-    "011",
-    "011",
-    "011",
-    "011",
-    "011",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "011",
-    "011",
-    "011",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "110",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "111",
-    "110",
-    "000",
-    "000"
-};
-#endif
-
 typedef enum {
     RVR_ZERO,
     RVR_RA,
@@ -228,49 +100,43 @@ typedef enum {
     RVR_T6
 } riscv_reg;
 
-#if 1
-static const char* riscv_regname[32] = {
-    "zero",
-    "ra",
-    "sp",
-    "gp",
-    "tp",
-    "t0",
-    "t1",
-    "t2",
-    "s0/fp",
-    "s1",
-    "a0",
-    "a1",
-    "a2",
-    "a3",
-    "a4",
-    "a5",
-    "a6",
-    "a7",
-    "s2",
-    "s3",
-    "s4",
-    "s5",
-    "s6",
-    "s7",
-    "s8",
-    "s9",
-    "s10",
-    "s11",
-    "t3",
-    "t4",
-    "t5",
-    "t6"
-};
-#endif
-
+// Execution end result codes
 typedef enum {
-    RVSYS_CLOSE = 57,
-    RVSYS_WRITE = 64,
-    RVSYS_FSTAT = 80,
-    RVSYS_EXIT = 93,
-    RVSYS_BRK = 214,
-} riscv_sys;
+    RVEXIT_SUCCESS = 0,
+    RVEXIT_HALT,
+    RVEXIT_ERROR,
+    RVEXIT_WRONGOPCODE,
+} riscv_exit;
+
+// Callbacks, conveniently brought together
+typedef struct riscv_state_s riscv_state; // just a forward decl.
+typedef struct {
+    uint32_t  (*read8)(riscv_state* state, uint32_t addr);
+    uint32_t (*read16)(riscv_state* state, uint32_t addr);
+    uint32_t (*read32)(riscv_state* state, uint32_t addr);
+
+    void  (*write8)(riscv_state* state, uint32_t addr, uint32_t val);
+    void (*write16)(riscv_state* state, uint32_t addr, uint32_t val);
+    void (*write32)(riscv_state* state, uint32_t addr, uint32_t val);
+
+    uint8_t (*ecall)(riscv_state* state);
+    void (*ebreak)(riscv_state* state);
+} riscv_callbacks;
+
+// Virtual machine state main structure
+typedef struct riscv_state_s {
+    uint32_t ip;                /* The Instruction Pointer */
+    uint32_t regs[RV_NUMREGS];  /* CPU Registers */
+    riscv_callbacks funcs;      /* Interface callback functions */
+    void* user;                 /* User-defined data */
+} riscv_state;
+
+// Main function
+riscv_exit riscv_exec(riscv_state* st);
+
+#ifdef RV_USE_DISASM
+// Helper function - disassemble single operation
+riscv_exit riscv_disasm(uint32_t inst, char* str, int len);
+#endif /* RV_USE_DISASM */
 
 #endif /* RISCV_H_ */

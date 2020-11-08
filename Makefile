@@ -7,7 +7,7 @@ APP = nano_rvi
 CC = gcc
 LD = gcc
 
-OBJS = main.o
+OBJS = main.o riscv.o interface.o debug.o elf.o
 CCFLAGS = -Wall -Wextra -g -O0
 LDFLAGS = -Wall -g -Wl,-gc-sections
 
