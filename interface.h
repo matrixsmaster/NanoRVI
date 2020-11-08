@@ -40,7 +40,8 @@ enum rv_syscall {
 };
 
 void rv_iface_init(rv_interface* iface);
-bool rv_iface_start(rv_interface* iface);
+bool rv_iface_resize(rv_interface* iface);
+void rv_iface_start(rv_interface* iface);
 bool rv_iface_step(rv_interface* iface);
 void rv_iface_stop(rv_interface* iface);
 

@@ -132,7 +132,20 @@ void rv_iface_init(rv_interface* iface)
     memset(iface,0,sizeof(rv_interface));
 }
 
-bool rv_iface_start(rv_interface* iface)
+bool rv_iface_resize(rv_interface* iface)
+{
+    // (Re-) Allocate RAM
+    uint8_t* ptr = (uint8_t*)realloc(iface->ram,iface->ram_size);
+    if (!ptr) {
+        printf("ERROR: Unable to allocate %u bytes of RAM\n",iface->ram_size);
+        return false;
+    }
+
+    iface->ram = ptr;
+    return true;
+}
+
+void rv_iface_start(rv_interface* iface)
 {
     iface->vm.user = iface; // create circular pointer
 
@@ -146,13 +159,6 @@ bool rv_iface_start(rv_interface* iface)
     iface->vm.funcs.ecall = ecall;
     iface->vm.funcs.ebreak = ebreak;
 
-    // Allocate RAM
-    iface->ram = (uint8_t*)malloc(iface->ram_size);
-    if (!iface->ram) {
-        printf("ERROR: Unable to allocate %u bytes of RAM\n",iface->ram_size);
-        return false;
-    }
-
     // If stack bottom is still not initialized, set it to the end of RAM
     if (!iface->stack_start) iface->stack_start = iface->ram_size - 4;
 
@@ -162,8 +168,6 @@ bool rv_iface_start(rv_interface* iface)
 
     // Set other limits
     iface->heap_max = iface->ram_size - iface->stack_size;
-
-    return true;
 }
 
 bool rv_iface_step(rv_interface* iface)

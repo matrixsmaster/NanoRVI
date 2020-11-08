@@ -60,6 +60,7 @@ static bool read_args(rv_interface* iface, int argc, char* argv[])
 
         case 1: // RAM size
             iface->ram_size = atol(argv[i]) * 1024;
+            if (!rv_iface_resize(iface)) return false;
             fsm = 0;
             break;
 
@@ -69,6 +70,10 @@ static bool read_args(rv_interface* iface, int argc, char* argv[])
             break;
 
         case 3: // ELF file
+            if (!iface->ram_size) {
+                printf("ERROR: RAM size should be defined before loading ELF\n");
+                return false;
+            }
             if (!readelf(iface,argv[i])) return false;
             loaded = 1;
             fsm = 0;
@@ -97,14 +102,12 @@ int main(int argc, char* argv[])
     // Read command line arguments, filling our interface structure
     if (!read_args(&iface,argc,argv)) {
         usage(argv[0]);
+        rv_iface_stop(&iface); // clean-up
         return 1;
     }
 
-    // Check that we can prepare VM for execution
-    if (!rv_iface_start(&iface)) {
-        printf("ERROR: unable to start virtual machine\n");
-        return 2;
-    }
+    // Prepare VM for execution
+    rv_iface_start(&iface);
 
     // Execute it until finished (or until the thermal death of the Universe)
     while (rv_iface_step(&iface)) ;
