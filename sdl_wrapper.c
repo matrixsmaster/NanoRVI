@@ -23,12 +23,12 @@ int sdl_wrapper_init(int w, int h, const char* title)
     }
 
     if (SDL_CreateWindowAndRenderer(w,h,0,&wnd,&ren)) {
-        puts("Can't create the main window");
+        puts("Can't create main window");
         return 2;
     }
 
     if (SDL_SetRenderDrawColor(ren,0,0,0,255)) {
-        puts("Can't set up the background color");
+        puts("Can't set up background color");
         return 3;
     }
 

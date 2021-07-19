@@ -57,6 +57,10 @@ static bool readelf_internal(rv_interface* vm, FILE* fin)
     }
 
     vm->start = elfhdr.entry;
+
+    if (vm->debug & DBG_LOAD)
+        printf("Start address 0x%08X\n",vm->start);
+
     return true;
 }
 

@@ -187,7 +187,7 @@ bool rv_iface_step(rv_interface* iface)
     // trace - part 1
     if (iface->debug & DBG_TRACE) {
         char buf[IFACE_DISASM_MAX_LEN];
-        riscv_exit r = riscv_disasm(iface->ram[iface->vm.ip],buf,sizeof(buf));
+        riscv_exit r = riscv_disasm((*(uint32_t*)(iface->ram+iface->vm.ip)),buf,sizeof(buf));
         if (r == RVEXIT_SUCCESS)
             printf("0x%08X: %s\n",iface->vm.ip,buf);
     }
