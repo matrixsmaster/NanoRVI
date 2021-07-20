@@ -5,7 +5,7 @@
 //
 // This work is licensed under the MIT License. See below.
 //
-// Modified by Dmitry 'MatrixS_Master' Solovyev, 2015-2020
+// Modified by Dmitry 'MatrixS_Master' Solovyev, 2015-2021
 //
 // RISC-V Compile: riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -mcmodel=medany -O2 -o 8086tiny.elf 8086tiny.c
 //

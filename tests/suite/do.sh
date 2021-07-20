@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # A quick and dirty conversion of RISC-V test battery
-# This file (C) Dmitry Solovyev, 2020
+# This file (C) Dmitry Solovyev, 2020-2021
 
 cat enum.txt | sort | awk '{ print tolower($1) }' | while read i ; do
     echo "Testing $i..."

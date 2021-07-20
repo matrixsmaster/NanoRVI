@@ -1,7 +1,7 @@
 /*
  *
  * Nano RISC-V 32i emulator
- * Copyright (C) Dmitry 'MatrixS_Master' Solovyev, 2020
+ * Copyright (C) Dmitry 'MatrixS_Master' Solovyev, 2020-2021
  *
  * This work is licensed under the MIT License. See included LICENSE file
  *

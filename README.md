@@ -28,6 +28,6 @@ If you want to embed this emulator into your own project, all you need to do is:
 
 The emulator core is completely re-entrant, so you can enjoy running thousands of virtual RISC-V CPUs in parallel on your mighty GPU ;)
 
-___Copyright (C) Dmitry 'MatrixS_Master' Solovyev, 2020___
+___Copyright (C) Dmitry 'MatrixS_Master' Solovyev, 2020-2021. All rights reserved.___
 
 ___This work is licensed under the MIT License. See included LICENSE file___
